@@ -1,0 +1,23 @@
+[
+   {
+      "name": "yuvraj",
+      "customer_balance": 240,
+      "items_purchased": [
+         "ice cream",
+         "coke",
+         "chips",
+         "toothpaste"
+      ],
+      "date": "2026-05-13",
+      "time": "19:27:00",
+      "history": [
+         {
+            "time": "2026-05-13 19:28:28",
+            "amount_added": 40,
+            "items_added": [
+               "toothpaste"
+            ]
+         }
+      ]
+   }
+]
