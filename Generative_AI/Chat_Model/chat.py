@@ -25,7 +25,9 @@ load_dotenv()
 
 from langchain_mistralai import ChatMistralAI
 
-model_mistral = ChatMistralAI(model = "mistral-medium-latest")
+model_mistral = ChatMistralAI(model = "mistral-medium-latest", temperature= 0.8, max_tokens= 150)
 
-response_mistral = model_mistral.invoke("Hello, Mistral AI. Tell me about yourself.")
+response_mistral = model_mistral.invoke("Give me a poem about monsoon.")
 print(response_mistral.content)
+
+# We can also use HuggingFace as well, but it takes harge for each request

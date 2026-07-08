@@ -1,5 +1,7 @@
+langchain
 langchain-core
 langchain-mistralai
 langchain-groq
 langchain-google-genai
+langchain-huggingface
 python-dotenv
