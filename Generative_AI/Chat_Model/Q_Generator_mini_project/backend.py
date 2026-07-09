@@ -7,16 +7,19 @@ from typing import List, Optional
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
+from fastapi import FastAPI, HTTPException
 
 load_dotenv()
 
-class Essay(BaseModel):
+app = FastAPI(title = "Question Geenrator AI Chatbot")
+
+class Para(BaseModel):
 
     introduction : str = Field(description = "The introductory part as confirming the number of questions generated that user entered")
     topic: Optional[str] = Field(description = "The topic of the given paragraph")
     questions: List[str]
 
-parser = PydanticOutputParser(pydantic_object = Essay)
+parser = PydanticOutputParser(pydantic_object = Para)
 
 prompt_template = ChatPromptTemplate.from_messages([
     (
@@ -38,28 +41,36 @@ Generate exactly {num_questions} questions from the following paragraph:
     )
 ])
 
-def question_generator(paragraph : str, num_q : int, api_key: str) -> str:
+class UserResponse(BaseModel):
+    paragraph : str
+    num_questions : int
+    api_key: str
 
-    if len(paragraph.split()) > 3000:
-        raise ValueError("Input too long: To keep our free API tiers healthy, please limit your text to under 5,000 words.")
+@app.post('/')
+def question_generator(response : UserResponse):
+
+    if len(response.paragraph.split()) > 3000:
+        raise HTTPException(status_code= 422, detail = "Input too long: To keep our free API tiers healthy, please limit your text to under 5,000 words.")
+    
     else:
         try:
             model = ChatMistralAI(
                     model = "mistral-medium-latest",
                     temperature = 0.35,
-                    api_key = api_key
+                    api_key = response.api_key
             )
             prompt = prompt_template.invoke(
                 {
-                    "num_questions" : num_q,
-                    "paragraph" : paragraph,
+                    "num_questions" : response.num_questions,
+                    "paragraph" : response.paragraph,
                     "format_instructions" : parser.get_format_instructions()
                 }
             )
             response = model.invoke(prompt).content
             question_data = parser.parse(response)
-            output = question_data.model_dump_json(indent = 2)
+            output = question_data.model_dump(mode= 'json')
 
             return output
+        
         except Exception as error:
-            return f"The model cannot load the questions at the moment as {error}"
+            return HTTPException(status_code = 400, detail = f"The model cannot load the questions at the moment as {str(error)}")
