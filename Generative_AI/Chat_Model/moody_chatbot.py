@@ -35,40 +35,28 @@ print("\nEnter 'exit' to terminate the conversation!!\n")
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-model = ChatMistralAI(
-    model = "mistral-medium-latest",
-    temperature= 0.6,
-)
+class chatbot():
+    def __init__(self, api_key : str):
+        self.model = ChatMistralAI(
+                model = "mistral-medium-latest",
+                temperature= 0.6,
+                api_key = api_key
+        )
+        
+    def set_tone(self, tone : str):
+        self.prompts_history = [SystemMessage(tone)]
+        return self.prompts_history
 
-print("Enter your choice for the tone of response by the model :- ")
-print("1. Funny Jarvis\n2. Angry Jarvis\n3. Depressed Jarvis\n4. Straight to the point")
+    def moody_chatbot(self, prompt: str):
+        hm = HumanMessage(content = prompt)
+        self.prompts_history.append(hm)
 
-choice = int(input("Enter the option :- "))
+        if prompt.strip().lower() == "exit":
+            return "Chat Ended. Thank you for the engaging conversation."
 
-if choice == 1:
-    mode = "You are a funny large language model, replying with jokes and humour"
-elif choice == 2:
-    mode = "You are an angry AI, and responds with aggression"
-elif choice == 3:
-    mode = "You are a depressed and sad AI, replying every answer with sadness and grief"
-else:
-    mode = "You are a large language model who answers straight to the point"
-
-prompts = [
-    SystemMessage(mode)
-]
-while True:
-    prompt = input("You : ")
-    hm = HumanMessage(content = prompt)
-    prompts.append(hm)
-
-    if prompt.strip().lower() == "exit":
-        print("\nChat Ended. Thank you for the engaging conversation.")
-        break
-
-    response = model.invoke(prompts)
-    am = AIMessage(content = response.content)
-    prompts.append(am)
-    print("Jarvis : ", response.content)
+        response = self.model.invoke(self.prompts_history).content
+        am = AIMessage(content = response)
+        self.prompts_history.append(am)
+        return response, self.prompts_history
 
     
