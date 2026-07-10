@@ -10,7 +10,7 @@ load_dotenv()
 st.title("📝 Question Generator AI Bot")
 st.markdown("Analyze paragraphs and generate highly structured educational question schemas.")
 
-BACKEND_URL = "http://127.0.0.1:8000"
+BACKEND_URL = "https://question-generator-ai-chatbot.onrender.com"
 
 st.sidebar.header("⚙️ API Configuration")
 st.sidebar.markdown(
