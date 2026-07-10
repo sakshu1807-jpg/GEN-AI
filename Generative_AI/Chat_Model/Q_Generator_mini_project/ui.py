@@ -30,6 +30,13 @@ if st.button("Generate Questions", type="primary"):
     if not user_paragraph.strip():
         st.warning("Please enter a text paragraph first!")
     else:
+
+        st.warning(
+            "⚠️ **Attention:** This application uses Render's FREE hosting tier. "
+            "If the app hasn't been visited recently, the server goes to sleep and can take "
+            "**30 to 40 seconds** to wake up. Please remain on the page!"
+        )
+
         with st.spinner("Generating questions from AI model..."):
             
             active_key = user_mistral_key if user_mistral_key else os.getenv("MISTRAL_API_KEY")
@@ -41,8 +48,7 @@ if st.button("Generate Questions", type="primary"):
             }
 
             try:
-
-                response = requests.post(BACKEND_URL, json = payload, timeout = 100)
+                response = requests.post(BACKEND_URL, json = payload, timeout = 140)
 
                 if response.status_code == 400:
                         st.warning("⚠️ **Input too long:** Please limit your input paragraph to under 3,000 words.")
