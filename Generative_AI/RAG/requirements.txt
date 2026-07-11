@@ -1,0 +1,17 @@
+langchain
+langchain-core
+pypdf
+mistralai
+langchain-chroma # Vector Database
+sentence-transformers
+langchain-mistralai
+python-dotenv
+torchvision
+streamlit
+uvicorn
+fastapi
+requests
+tqdm
+numpy
+pandas
+tiktoken # Text Processing
