@@ -1,7 +1,6 @@
 langchain
 langchain-core
 pypdf
-mistralai
 langchain-chroma # Vector Database
 sentence-transformers
 langchain-mistralai
