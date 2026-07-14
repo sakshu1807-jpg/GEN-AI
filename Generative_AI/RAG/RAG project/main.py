@@ -1,5 +1,4 @@
 import os
-import time
 import chromadb
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException
