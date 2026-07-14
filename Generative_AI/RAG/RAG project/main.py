@@ -1,6 +1,7 @@
 import os
 import chromadb
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from langchain_chroma import Chroma
 from pydantic import BaseModel
@@ -104,3 +105,11 @@ async def chatbot(request: Request):
     
     except Exception as error:
         raise HTTPException(status_code= 404, detail= str(error))
+    
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = ["*"],
+    allow_credentials = ["*"],
+    allow_methods = ["*"],
+    allow_headers = ["*"]
+)
