@@ -4,10 +4,7 @@ langchain-core
 pypdf
 pydantic
 python-docx
-langchain-chroma # Vector Database
-chromadb
 langchain-google-genai
-sentence-transformers
 langchain-mistralai
 python-dotenv
 streamlit
