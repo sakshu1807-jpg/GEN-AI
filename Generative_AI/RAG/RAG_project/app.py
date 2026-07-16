@@ -5,6 +5,17 @@ BACKEND_URL = "https://rag-project-921d.onrender.com"
 
 st.set_page_config(page_title="DocuChat AI", page_icon="📄", layout="wide")
 
+@st.cache_data(ttl=600)  # Runs at most once every 10 minutes per browser session
+def verify_backend_status():
+    """Pings the backend to wake it up if the external cronjob fails."""
+    try:
+        response = requests.get(f"{BACKEND_URL}/keep-alive", timeout=5)
+        return response.status_code == 200
+    except requests.exceptions.RequestException:
+        return False
+
+backend_alive = verify_backend_status()
+
 # Initialize local session states
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
@@ -12,6 +23,12 @@ if "file_analyzed" not in st.session_state:
     st.session_state["file_analyzed"] = False
 if "uploaded_filename" not in st.session_state:
     st.session_state["uploaded_filename"] = ""
+
+if not backend_alive and not st.session_state["file_analyzed"]:
+    st.warning(
+        "⚠️ The server is waking up! Render's free tier goes to sleep after 15 minutes of inactivity. "
+        "Your first document upload might take an extra 30–40 seconds while the gears start turning."
+    )
 
 st.title("📄 DocuChat AI RAG Pipeline")
 st.markdown("---")
@@ -35,6 +52,8 @@ if not st.session_state["file_analyzed"]:
                         st.session_state["file_analyzed"] = True
                         st.session_state["uploaded_filename"] = uploaded_file.name
                         st.session_state["messages"] = []  # Reset chat history
+
+                        st.session_state["show_success_toast"] = True
                         st.rerun()  # Refresh layout instantly
                     else:
                         st.error(f"Server Error ({response.status_code}): {response.text}")
@@ -43,6 +62,11 @@ if not st.session_state["file_analyzed"]:
 
 # --- STEP 2: Dashboard Layout (Triggers after successful analysis) ---
 else:
+    if st.session_state.get("show_success_toast", False):
+        st.toast("🎉 Document processed successfully!", icon="✅")
+        st.success(f"⚡ **Success!** `{st.session_state['uploaded_filename']}` has been completely split, indexed via Google Gen AI, and loaded into your active session. You can now chat below!")
+        del st.session_state["show_success_toast"]
+
     # Create two columns: Left for document management, Right for the actual Chat UI
     col1, col2 = st.columns([1, 2], gap="large")
     
