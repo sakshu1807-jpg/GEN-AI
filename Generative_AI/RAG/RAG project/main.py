@@ -1,9 +1,8 @@
 import os
-import chromadb
+import numpy as np
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from langchain_chroma import Chroma
 from pydantic import BaseModel
 from langchain_mistralai import ChatMistralAI
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -39,14 +38,24 @@ def get_embedding_model():
         )
     return session['embedding_model']
 
-def get_chroma_client():
-    if 'chroma_client' not in session:
-        session['chroma_client'] = chromadb.EphemeralClient()
-    return session['chroma_client']
+def cosine_similarity(vec1, vec2):
+    dot_product = 0
+    for a, b in zip(vec1, vec2):
+        product = a*b
+        dot_product += product
+    
+    magnitude_a = sum(a*a for a in vec1)
+    magnitude_a = np.sqrt(magnitude_a)
+    magnitude_b = np.sqrt(sum(b*b for b in vec2))
+    cos_theta = dot_product/(magnitude_a*magnitude_b)
+    
+    return cos_theta
 
 @app.get("/keep-alive")
 async def keep_alive():
-    return {"status": "alive", "message": "Keeping the gears turning!"}
+    return {
+        'Message': "Keeping the backend server alive."
+    }
 
 @app.post('/upload')
 async def upload_file(file: UploadFile = File(...)):
@@ -54,15 +63,14 @@ async def upload_file(file: UploadFile = File(...)):
     file_name = file.filename.lower().strip()
     ext = file_name.split('.')[-1]
     documents = await file_input(file)
+    embedding_model: GoogleGenerativeAIEmbeddings = get_embedding_model()
     if documents:
         try:
-            vector_store = await Chroma.afrom_documents(
-                documents= documents,
-                embedding= session.get('embedding_model'),
-                client= session.get('chroma_client')
-            )
+            text_chunks = [doc.page_content for doc in documents]
 
+            vector_store = embedding_model.embed_documents(text_chunks)
             session['vector_store'] = vector_store
+            session['chunks'] = text_chunks
             session['chat_history'] = []
 
             return {
@@ -83,18 +91,25 @@ class Response(BaseModel):
 async def chatbot(request: Request):
 
     try:
-        model: ChatMistralAI = session['chat_model']
-        vector_store: Chroma = session['vector_store']
+        if not session['chunks']:
+            raise HTTPException(status_code=400, detail="Please upload a document first.")
+        
+        model: ChatMistralAI = get_chat_model()
+        embedding_model: GoogleGenerativeAIEmbeddings = get_embedding_model()
+        vector_store = session['vector_store']
         chat_history = session['chat_history']
-        base_retriever = vector_store.as_retriever()
 
-        query_retriever = MultiQueryRetriever.from_llm(
-            retriever= base_retriever,
-            llm= model
-        )
+        query_vector = embedding_model.embed_query(request.question)
 
-        retrieved_docs = await query_retriever.ainvoke(request.question)
-        context = '\n'.join([doc.page_content for doc in retrieved_docs])
+        scored_chunks = []
+        for chunk, chunk_vec in zip(session['chunk'], session['vector_store']):
+            cos_theta = cosine_similarity(query_vector, chunk_vec)
+            scored_chunks.append((chunk, cos_theta))
+
+        scored_chunks.sort(key= lambda x : x[1], reverse = True)
+        top_5_chunks = scored_chunks[:5]
+
+        context = '\n'.join(top_5_chunks)
 
         system_message = SystemMessage(f"""You are a helpful and knowledgeable AI assistant. 
         Your task is to answer user queries based strictly on the provided context retrieved from the documents.

@@ -18,3 +18,4 @@ tqdm
 numpy
 pandas
 tiktoken # Text Processing
+httpx
