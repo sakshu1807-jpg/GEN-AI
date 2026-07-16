@@ -102,7 +102,7 @@ async def chatbot(request: Request):
         query_vector = embedding_model.embed_query(request.question)
 
         scored_chunks = []
-        for chunk, chunk_vec in zip(session['chunk'], session['vector_store']):
+        for chunk, chunk_vec in zip(session['chunks'], vector_store):
             cos_theta = cosine_similarity(query_vector, chunk_vec)
             scored_chunks.append((chunk, cos_theta))
 
