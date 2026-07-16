@@ -17,24 +17,32 @@ session = {}
 
 @asynccontextmanager
 async def data_lifespan(app: FastAPI):
-    mistral_api_key = os.getenv("MISTRAL_API_KEY")
-    chat_model = ChatMistralAI(
-        model_name = "mistral-medium-latest", temperature = 0.45, api_key = mistral_api_key
-    )
-    google_key = os.getenv("GOOGLE_API_KEY")
-    embedding_model = GoogleGenerativeAIEmbeddings(
-        model = 'gemini-embedding-001',
-        api_key= google_key
-    )
-
-    session['chroma_client'] = chromadb.EphemeralClient()
-    session['chat_model'] = chat_model
-    session['embedding_model'] = embedding_model
-
     yield
     session.clear()
     
 app = FastAPI(lifespan= data_lifespan)
+
+def get_chat_model():
+    if 'chat_model' not in session:
+        session['chat_model'] = ChatMistralAI(
+            model_name="mistral-medium-latest", 
+            temperature=0.45, 
+            api_key=os.getenv("MISTRAL_API_KEY")
+        )
+    return session['chat_model']
+
+def get_embedding_model():
+    if 'embedding_model' not in session:
+        session['embedding_model'] = GoogleGenerativeAIEmbeddings(
+            model='gemini-embedding-001',
+            api_key=os.getenv("GOOGLE_API_KEY")
+        )
+    return session['embedding_model']
+
+def get_chroma_client():
+    if 'chroma_client' not in session:
+        session['chroma_client'] = chromadb.EphemeralClient()
+    return session['chroma_client']
 
 @app.get("/keep-alive")
 async def keep_alive():
