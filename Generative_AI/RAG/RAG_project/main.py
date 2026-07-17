@@ -107,7 +107,8 @@ async def chatbot(request: Request):
             scored_chunks.append((chunk, cos_theta))
 
         scored_chunks.sort(key= lambda x : x[1], reverse = True)
-        top_5_chunks = scored_chunks[:5]
+        top_5_scores = scored_chunks[:5]
+        top_5_chunks = [chunk for chunk, score in zip(top_5_scores)]
 
         context = '\n'.join(top_5_chunks)
 
