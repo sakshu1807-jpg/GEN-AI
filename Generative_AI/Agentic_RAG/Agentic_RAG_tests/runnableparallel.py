@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 model = ChatMistralAI(
-    model = 'mistral-medium-latest',
+    model_name = 'mistral-medium-latest',
     temperature = 0.5
 )
 
@@ -35,4 +35,4 @@ result = runnable_parallel.invoke(
     }
 )
 
-print(result['detail'])
+print(result['detailed'])
