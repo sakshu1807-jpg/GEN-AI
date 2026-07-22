@@ -20,6 +20,10 @@ def uppercase_text(text: str) -> str:
     """This function returns the uppercase form of the text given"""
     return text.upper()
 
+tools = {
+    'get_text_length': get_text_length,
+    'uppercase_text': uppercase_text
+}
 # 2. Tool Binding
 
 model = ChatMistralAI(
@@ -57,12 +61,10 @@ if not result.tool_calls:
 
 else:
     for tool_call in result.tool_calls:
-        if tool_call['name'] == 'get_text_length':
-            tool_result = get_text_length.invoke(tool_call)
+        tool_name = tool_call['name']
+        selected_tool = tools[tool_name]
 
-        else:
-            tool_result = uppercase_text.invoke(tool_call)
-
+        tool_result = selected_tool.invoke(tool_call)
         messages.append(tool_result)
 
 final_result = model_with_tools.invoke(messages)
