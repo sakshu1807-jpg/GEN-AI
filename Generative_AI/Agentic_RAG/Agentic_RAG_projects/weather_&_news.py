@@ -1,7 +1,8 @@
 import os
-import json
 import requests
 from langchain_mistralai import ChatMistralAI
+from langchain_core.messages import HumanMessage
+from langchain_core.output_parsers import StrOutputParser
 from langchain.tools import tool
 from tavily import TavilyClient
 from rich import print
@@ -38,6 +39,53 @@ def get_weather(city: str) -> str:
     
     return weather_data
 
-result = get_weather.invoke({'city': 'Delhi'})
+@tool
+def get_latest_news(city: str) -> str:
+    """This tool returns the latest news of the city"""
+    query = f'Latest news of {city}'
+    tavily_api = os.getenv('TAVILY_API_KEY')
+    client = TavilyClient(api_key = tavily_api)
 
-print(result)
+    news_data = client.search(
+        query= query,
+        max_results= 4,
+        search_depth= 'basic'
+    )
+
+    return news_data
+
+model = ChatMistralAI(
+    model_name = 'mistral-medium-latest'
+)
+parser = StrOutputParser()
+
+messages = []
+
+tools = {
+    'get_latest_news': get_latest_news,
+    'get_weather': get_weather
+}
+
+model_with_tools = model.bind_tools([get_weather, get_latest_news])
+
+city = input('Enter city :- ')
+prompt = f"Provide me the latest news and weather of the {city}"
+
+messages.append(HumanMessage(prompt))
+
+result = model_with_tools.invoke(messages)
+messages.append(result)
+
+for tool_call in result.tool_calls:
+    tool_name = tool_call['name']
+    tool_selected = tools[tool_name]
+
+    tool_result = tool_selected.invoke(tool_call)
+    messages.append(tool_result)
+
+final_result = model_with_tools.invoke(messages)
+answer = parser.parse(final_result.content)
+print(answer)
+
+
+
