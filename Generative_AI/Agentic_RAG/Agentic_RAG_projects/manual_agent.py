@@ -68,24 +68,34 @@ tools = {
 
 model_with_tools = model.bind_tools([get_weather, get_latest_news])
 
-city = input('Enter city :- ')
-prompt = f"Provide me the latest news and weather of the {city}"
+print("-"*50)
+print("Tool Filled AI")
+print("-"*50)
+print("\nEnter 'exit' to end the conversation")
 
-messages.append(HumanMessage(prompt))
+while True:
+    user_input = input('You :- ')
+    if user_input.lower().strip() == 'exit':
+        print("\nConversation Ended")
+        break
 
-result = model_with_tools.invoke(messages)
-messages.append(result)
+    messages.append(HumanMessage(user_input)) # Human Message
 
-for tool_call in result.tool_calls:
-    tool_name = tool_call['name']
-    tool_selected = tools[tool_name]
+    result = model_with_tools.invoke(messages)
+    messages.append(result) # AI Message
 
-    tool_result = tool_selected.invoke(tool_call)
-    messages.append(tool_result)
+    if not result.tool_calls:
+        answer = parser.parse(result.content)
+        print("Bot :- ", answer)
 
-final_result = model_with_tools.invoke(messages)
-answer = parser.parse(final_result.content)
-print(answer)
+    else:
+        for tool_call in result.tool_calls:
+            tool_name = tool_call['name']
+            tool_selected = tools[tool_name]
 
+            tool_result = tool_selected.invoke(tool_call)
+            messages.append(tool_result) # Tool Message
 
-
+        final_result = model_with_tools.invoke(messages) # AI Message
+        answer = parser.parse(final_result.content)
+        print(answer)
