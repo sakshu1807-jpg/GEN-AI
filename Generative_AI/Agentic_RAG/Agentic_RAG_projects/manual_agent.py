@@ -5,7 +5,6 @@ from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain.tools import tool
 from tavily import TavilyClient
-from rich import print
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -81,12 +80,14 @@ while True:
 
     messages.append(HumanMessage(user_input)) # Human Message
 
-    result = model_with_tools.invoke(messages)
-    messages.append(result) # AI Message
+    result = model_with_tools.invoke(messages) # AI Message
 
     if not result.tool_calls:
-        answer = parser.parse(result.content)
-        print("Bot :- ", answer)
+        for chunks in model_with_tools.stream(messages):
+
+            print(chunks.content, end= '', flush= True)
+
+        messages.append(result)
 
     else:
         for tool_call in result.tool_calls:
@@ -98,4 +99,6 @@ while True:
 
         final_result = model_with_tools.invoke(messages) # AI Message
         answer = parser.parse(final_result.content)
-        print(answer)
+        messages.append(final_result)
+
+    print("Bot :-", end= '\n')
