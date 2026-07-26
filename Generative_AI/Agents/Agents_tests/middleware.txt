@@ -1,0 +1,26 @@
+Core Types of Prebuilt Middleware
+
+1. SummarizationMiddleware : Automatically watches message logs and summarizes old conversation history 
+   when you approach token limits, preventing context window crashes.
+
+2. HumanInTheLoopMiddleware : Pauses agent execution to mandate human approval,
+   rejection, or edits right before high-stakes tool actions take place.
+
+3. ToolErrorMiddleware: Intercepts tool execution crashes and structures the exception 
+   into a readable error message so the LLM can self-correct.
+
+4. LLMToolSelectorMiddleware: Provisions a fast, lightweight LLM routing step to isolate 
+   and pre-select relevant tools before passing them to the main model.
+
+5. TodoListMiddleware: Automatically injects prompts and structures a specialized task 
+   list tool so the agent can self-plan and track progress during multi-step goals.
+
+Core Types of Custom Middleware
+
+1. @before_model: Runs logic directly before an LLM payload is sent (e.g., dynamically 
+   adding a system instruction or injecting timestamps).
+
+2. @after_model: Evaluates or cleanses raw LLM responses before updating the global application state.
+
+3. @wrap_tool_call: Wraps tool executions to log exact latency figures or map execution 
+   spaces into isolated sandboxes.
