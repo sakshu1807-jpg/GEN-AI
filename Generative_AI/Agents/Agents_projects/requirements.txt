@@ -1,0 +1,12 @@
+langchain
+langchain-classic
+langchain-core
+langchain-tavily
+pydantic
+langchain-mistralai
+python-dotenv
+streamlit
+uvicorn
+fastapi
+requests
+tqdm

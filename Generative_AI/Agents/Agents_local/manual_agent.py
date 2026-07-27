@@ -40,7 +40,7 @@ def get_weather(city: str) -> str:
 
 @tool
 def get_latest_news(city: str) -> str:
-    """This tool returns the latest news of the city"""
+    """This tool returns the latest news of the city or any famous/ known place."""
     query = f'Latest news of {city}'
     tavily_api = os.getenv('TAVILY_API_KEY')
     client = TavilyClient(api_key = tavily_api)
@@ -81,13 +81,10 @@ while True:
     messages.append(HumanMessage(user_input)) # Human Message
 
     result = model_with_tools.invoke(messages) # AI Message
+    messages.append(result)
 
     if not result.tool_calls:
-        for chunks in model_with_tools.stream(messages):
-
-            print(chunks.content, end= '', flush= True)
-
-        messages.append(result)
+        print("Bot :-", result.content)
 
     else:
         for tool_call in result.tool_calls:
@@ -101,4 +98,4 @@ while True:
         answer = parser.parse(final_result.content)
         messages.append(final_result)
 
-    print("Bot :-", end= '\n')
+        print("Bot :-", answer)
