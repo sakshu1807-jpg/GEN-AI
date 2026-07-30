@@ -4,24 +4,17 @@ from langchain.tools import tool
 from langchain.agents.middleware import wrap_tool_call
 from tavily import TavilyClient
 from langchain_core.messages import ToolMessage
-
-# LLm for grounding the user query
-from langchain_mistralai import ChatMistralAI
+from typing import List, Dict, Any
+from pydantic import AnyHttpUrl
+from bs4 import BeautifulSoup
 
 # Tool - 1 : Extracts the current data along with the URLs
 
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
-@tool
-def get_source_data(user_field: str):
-    """This tool is used to extract all the data from different sources as per the field of study given by the user
-    ans returns all the content along with the urls of the source it visited or searched."""
-
-    llm = ChatMistralAI(
-        model_name= 'mistral-small-latest',
-        api_key= MISTRAL_API_KEY
-    )
+def get_source_data(field: str) -> List:
+    """This function gets the source data from different domains regarding the career field user has entered"""
     
     career_websites = [
         "onetonline.org",
@@ -41,24 +34,53 @@ def get_source_data(user_field: str):
     )
 
     final_query = f"""Inside the included professional career databases, educational planning portals,
-                    and competitive exam boards, analyze the field of {user_field}.
+                    and competitive exam boards, analyze the field of {field}.
                     Extract the definitive career paths, specific entrance or standardized exams required,
                     and the future significance/job growth outlook for this field."""
     
     raw_data = client.search(
         query= final_query,
-        search_depth= "advanced",
-        max_results= 10,
+        search_depth= "basic",
+        max_results= 3,
         include_domains= career_websites
     )
 
     return raw_data
 
+@tool
+def web_search(user_field: str) -> Dict[str, Any]:
+    """This tool is used to extract all the data from different sources as per the field of study given by the user
+        and returns the raw dictionary of all the sources visited."""
+    
+    return get_source_data(user_field)
+
+@tool
+def web_scrape(urls: List[AnyHttpUrl]) -> Dict:
+    """This tool web scrapes the given urls to generate clean, formatted text.
+        It assissts the LLM to gather textual information."""
+    
+    scrapped_text = {}
+
+    for url in urls:
+        try:
+            response = requests.get(url= url, timeout= 7, headers= {"User-Agent": "Mozilla/5.0"})
+            soup = BeautifulSoup(response.text, features= "html.parser")
+            for tag in soup(["script", "nav", "style", "footer"]):
+                tag.decompose()
+
+            url_text = soup.get_text(separator= ' ', strip= True)[:4000]
+            scrapped_text[url] = url_text
+
+        except Exception as error:
+            return f"An error occurred as {error}"
+
+    return scrapped_text
+
 @wrap_tool_call
 def user_approval(request, handler):
-    """This custom middleware seeks the approval from the user to whether geenrate the final report or not."""
+    """This custom middleware seeks the approval from the user to whether generate the final report or not."""
 
-    print(" ✅ Data from Different Sources Collected.\n")
+    print(" ✅ Data from Different Sources Collected.\n ⏳ Waiting for confirmation to generate the report.\n")
 
     user_input = input("Enter YES to generate the final report")
 

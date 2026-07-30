@@ -9,4 +9,4 @@ streamlit
 uvicorn
 fastapi
 requests
-tqdm
+beautifulsoup4
