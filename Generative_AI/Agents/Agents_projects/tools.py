@@ -76,21 +76,29 @@ def web_scrape(urls: List[AnyHttpUrl]) -> Dict[AnyHttpUrl, str]:
 
     return scrapped_text
 
-@wrap_tool_call
-def user_approval(request, handler):
+
+def user_approval():
     """This custom middleware seeks the approval from the user to whether generate the final report or not."""
 
-    print(" ✅ Data from Different Sources Collected.\n ⏳ Waiting for confirmation to generate the report.\n")
+    print("\n✅ Data from Different Sources Collected.\n⏳ Waiting for confirmation to generate the report.\n")
 
-    user_input = input("Enter YES to generate the final report")
+    user_input = input("Enter YES to generate the final report :- ")
 
     if user_input.strip().lower() != 'yes':
-        return ToolMessage(
-            content= "User denied to generate the final report."
-        )
+        return False
     
-    return handler(request)
+    return True
 
+def web_search_tool_error(exc: Exception, request) -> str | None:
 
+    if isinstance(exc, ValueError):
+        return f"`{request.tool_call['name']}` failed: {type(exc).__name__}. Fix the input and retry."
 
-    
+    return None
+
+def web_scrape_tool_error(exc: Exception, request) -> str | None:
+
+    if isinstance(exc, ConnectionError):
+        return f"Tool `{request.tool_call['name']}` encountered a connection error."
+
+    return None

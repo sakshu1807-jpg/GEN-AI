@@ -1,4 +1,4 @@
-from tools import web_search, web_scrape, user_approval
+from tools import web_search, web_scrape, user_approval, web_search_tool_error, web_scrape_tool_error
 
 # Langchain Components
 from langchain_mistralai import ChatMistralAI
@@ -8,12 +8,10 @@ from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, System
 
 # Agents Components
 from langchain.agents import create_agent
-from langchain.agents.middleware import(
-    SummarizationMiddleware
-)
+from langchain.agents.middleware import ToolRetryMiddleware, ToolErrorMiddleware
 
 from pydantic import BaseModel, AnyHttpUrl
-from typing import List, Dict
+from typing import Dict
 from rich import print
 
 # Environmental Variables
@@ -36,7 +34,6 @@ large_model = ChatMistralAI(
 
 parser = StrOutputParser()
 
-
 class Response_2(BaseModel):
         
     overview_summary: str
@@ -54,10 +51,14 @@ while True:
             """
         )
 
-        agent_1 = create_agent(
+        web_search_agent = create_agent(
             model= small_model,
             tools= [web_search],
             system_prompt= system_msg_1,
+            middleware= [
+                   ToolRetryMiddleware(max_retries= 3, on_failure= "error",),
+                   ToolErrorMiddleware(on_error= web_search_tool_error, tools= [web_search])
+            ]
         )
 
         prompt = input("Enter Field :- ")
@@ -68,7 +69,7 @@ while True:
         config = {"configurable": {"thread_id": "thread-1"}}
         inputs_1 = {"messages": [{"role": "user", "content": prompt}]}
 
-        result_1 = agent_1.invoke(inputs_1, config= config)
+        result_1 = web_search_agent.invoke(inputs_1, config= config)
         first_ai_msg: AIMessage = result_1['messages'][1]
 
         if not first_ai_msg.tool_calls:
@@ -91,17 +92,21 @@ system_msg_2 = SystemMessage(
         2. A dictionary having scrapped text and urls.
         """
 )
-agent_2 = create_agent(
+web_scrape_agent = create_agent(
     model= large_model,
     tools= [web_scrape],
     system_prompt= system_msg_2,
     response_format= Response_2,
+    middleware= [
+                ToolRetryMiddleware(max_retries= 3, on_failure= "error",),
+                ToolErrorMiddleware(on_error= web_search_tool_error, tools= [web_search])
+                ]
 )
 
 config_2 = {"configurable": {"thread_id": "thread-2"}}
 inputs_2 = {"messages": [{"role": "user", "content": content_1}]}
 
-output_2 = agent_2.invoke(inputs_2)
+output_2 = web_scrape_agent.invoke(inputs_2)
 result_2 = output_2['structured_response']
 
 print("\n✅ Clean Scrapped Text Loaded...")
@@ -131,10 +136,19 @@ prompt_template = ChatPromptTemplate.from_messages(
         ]
 )
 
+user_response = user_approval()
 
-final_chain = prompt_template | large_model | parser
+if user_response:
+    final_chain = prompt_template | large_model | parser
 
-final_result = final_chain.invoke(
-       
-)
+    report = final_chain.invoke(
+        {
+            'summary': result_2.overview_summary,
+            'web_dictionary': result_2.web_scraped_dictionary
+        }
+    )
+    print("\n⏳ Generating Report...\n")
+    print(report)
 
+else:
+       print("❌ Cannot Genertae the Final Report.\nUser denied the permission to generate the final report.")
