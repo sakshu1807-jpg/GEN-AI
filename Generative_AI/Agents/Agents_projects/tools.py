@@ -55,7 +55,7 @@ def web_search(user_field: str) -> Dict[str, Any]:
     return get_source_data(user_field)
 
 @tool
-def web_scrape(urls: List[AnyHttpUrl]) -> Dict:
+def web_scrape(urls: List[AnyHttpUrl]) -> Dict[AnyHttpUrl, str]:
     """This tool web scrapes the given urls to generate clean, formatted text.
         It assissts the LLM to gather textual information."""
     
