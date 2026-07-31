@@ -2,7 +2,7 @@ import os
 import requests
 from langchain.tools import tool
 from langchain.agents.middleware import wrap_tool_call
-from tavily import TavilyClient
+from tavily import AsyncTavilyClient
 from langchain_core.messages import ToolMessage
 from typing import List, Dict, Any
 from pydantic import AnyHttpUrl
@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
-def get_source_data(field: str) -> List:
+async def get_source_data(field: str) -> List:
     """This function gets the source data from different domains regarding the career field user has entered"""
     
     career_websites = [
@@ -29,7 +29,7 @@ def get_source_data(field: str) -> List:
         "linkedin.com"
     ]
 
-    client = TavilyClient(
+    client = AsyncTavilyClient(
         api_key= TAVILY_API_KEY,
     )
 
@@ -38,7 +38,7 @@ def get_source_data(field: str) -> List:
                     Extract the definitive career paths, specific entrance or standardized exams required,
                     and the future significance/job growth outlook for this field."""
     
-    raw_data = client.search(
+    raw_data = await client.search(
         query= final_query,
         search_depth= "basic",
         max_results= 3,
@@ -48,14 +48,14 @@ def get_source_data(field: str) -> List:
     return raw_data
 
 @tool
-def web_search(user_field: str) -> Dict[str, Any]:
+async def web_search(user_field: str) -> Dict[str, Any]:
     """This tool is used to extract all the data from different sources as per the field of study given by the user
         and returns the raw dictionary of all the sources visited."""
     
-    return get_source_data(user_field)
+    return await get_source_data(user_field)
 
 @tool
-def web_scrape(urls: List[AnyHttpUrl]) -> Dict[AnyHttpUrl, str]:
+async def web_scrape(urls: List[AnyHttpUrl]) -> Dict[AnyHttpUrl, str]:
     """This tool web scrapes the given urls to generate clean, formatted text.
         It assissts the LLM to gather textual information."""
     
