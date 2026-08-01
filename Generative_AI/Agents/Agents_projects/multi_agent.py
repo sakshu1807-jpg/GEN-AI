@@ -5,20 +5,21 @@ from tools import web_search, web_scrape, user_approval, web_search_tool_error, 
 
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from pydantic import BaseModel, AnyHttpUrl
+from fastapi.middleware.cors import CORSMiddleware
+from typing import Dict, List
+from rich import print
 
 # Langchain Components
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, T
+from langchain_core.runnables import Runnable
 
 # Agents Components
 from langchain.agents import create_agent
 from langchain.agents.middleware import ToolRetryMiddleware, ToolErrorMiddleware
-
-from pydantic import BaseModel, AnyHttpUrl
-from typing import Dict
-from rich import print
 
 # Environmental Variables
 from dotenv import load_dotenv
@@ -32,7 +33,8 @@ class Response_2(BaseModel):
 initial_loadings = {}
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):   
+async def lifespan(app: FastAPI):
+
     small_model = ChatMistralAI(
         model_name= 'mistral-small-latest',
         temperature= 0.3
@@ -54,16 +56,22 @@ async def lifespan(app: FastAPI):
     initial_loadings['medium_model'] = medium_model
     initial_loadings['large_model'] = large_model
     initial_loadings['parser'] = parser
+    initial_loadings['message_history'] = []
 
-    return initial_loadings
+    yield
+    initial_loadings.clear()
 
 app = FastAPI("MULTI-AGENT RESEARCH SYSTEM", lifespan= lifespan)
 
-@app.post('/web_search')
-async def web_sreaching(user_field: str):
+@app.post('/research_report')
+async def research_report(user_field: str):
+
+    # -------------- AGENT 1 --------------
 
     small_model = initial_loadings['small_model']
     large_model = initial_loadings['large_model']
+    parser = initial_loadings['parser']
+    msg_history: List = initial_loadings['message_history']
 
     web_search_system_msg = SystemMessage(
         content= """
@@ -86,6 +94,8 @@ async def web_sreaching(user_field: str):
             ToolErrorMiddleware(on_error= web_search_tool_error, tools= [web_search])
         ]
     )
+    user_message = HumanMessage(content= user_field)
+    msg_history.append(user_message)
 
     config = {"configurable": {"thread_id": "thread-1"}}
     inputs_1 = {"messages": [{"role": "user", "content": user_field}]}
@@ -94,10 +104,16 @@ async def web_sreaching(user_field: str):
     first_ai_msg: AIMessage = result_1['messages'][1]
 
     if not first_ai_msg.tool_calls:
-            return f"No valid field detected. Please enter a valid career field."
+        return AIMessage(
+            content= "Ready to generate your deep-dive topic report! " \
+            "Please enter your main and a valid eductional field below. " 
+        )
+    last_ai_msg: AIMessage = result_1['messages'][-1]
+    content_1 = last_ai_msg.content
 
-    else:
-            content_1 = result_1['messages'][-1].content
+    print("\n✅ Data Collected From Different Sources")
+
+    # -------------- AGENT 2 --------------
 
     web_scrape_system_msg = SystemMessage(
             content= """
@@ -125,49 +141,58 @@ async def web_sreaching(user_field: str):
     config_2 = {"configurable": {"thread_id": "thread-2"}}
     inputs_2 = {"messages": [{"role": "user", "content": content_1}]}
 
-    output_2 = web_scrape_agent.invoke(inputs_2)
+    output_2 = await web_scrape_agent.ainvoke(inputs_2, config_2)
     result_2 = output_2['structured_response']
 
-print("\n✅ Clean Scrapped Text Loaded...")
+    print("\n✅ Clean Scrapped Text Loaded...")
 
-prompt_template = ChatPromptTemplate.from_messages(
-        [
-            ("system", """
-            You are an expert career research analyst and executive data synthesizer. 
-            You recieve a summary and a dictionary where url is the key and scarapped text is the value.
-            Your task is to generate a highly detailed, compact, and comprehensive career field report 
-            based on the provided research context.
-            Extract, synthesize, and merge the information from both sources into a dense, high-utility intelligence report.
-            Introduce with a concise introduction.
-            Avoid fluff or generic career advice. Every sentence must deliver concrete, actionable data.
+    prompt_template = ChatPromptTemplate.from_messages(
+            [
+                ("system", """
+                You are an expert career research analyst and executive data synthesizer. 
+                You recieve a summary and a dictionary where url is the key and scarapped text is the value.
+                Your task is to generate a highly detailed, compact, and comprehensive career field report 
+                based on the provided research context.
+                Extract, synthesize, and merge the information from both sources into a dense, high-utility intelligence report.
+                Introduce with a concise introduction.
+                Avoid fluff or generic career advice. Every sentence must deliver concrete, actionable data.
 
-            ### EXECUTION CONSTRAINTS
-            - **Information Density:** Maximize facts, data points, statistics, and tool names per paragraph. 
-            - **Compactness:** Use bullet points, nested lists, and bold text for extreme scannability. Do not write long narrative paragraphs.
-            - **Formatting:** Output only the markdown report. Do not include conversational greetings, opening remarks, or closing summaries. Start directly with the report title.
+                ### EXECUTION CONSTRAINTS
+                - **Information Density:** Maximize facts, data points, statistics, and tool names per paragraph. 
+                - **Compactness:** Use bullet points, nested lists, and bold text for extreme scannability. Do not write long narrative paragraphs.
+                - **Formatting:** Output only the markdown report. Do not include conversational greetings, opening remarks, or closing summaries. Start directly with the report title.
 
-            Conclude with the bullet points having all the urls used as a source in this report.
-            """),
-            ("human", """
-            The summary is {summary}.
-            The web-scrapped dictionary is {web_dictionary}.
-            """)
-        ]
-)
-
-user_response = user_approval()
-
-if user_response:
-    final_chain = prompt_template | large_model | parser
-
-    report = final_chain.invoke(
-        {
-            'summary': result_2.overview_summary,
-            'web_dictionary': result_2.web_scraped_dictionary
-        }
+                Conclude with the bullet points having all the urls used as a source in this report.
+                """),
+                ("human", """
+                The summary is {summary}.
+                The web-scrapped dictionary is {web_dictionary}.
+                """)
+            ]
     )
-    print("\n⏳ Generating Report...\n")
-    print(report)
 
-else:
-       print("❌ Cannot Genertae the Final Report.\nUser denied the permission to generate the final report.")
+    user_response = user_approval()
+
+    if user_response:
+        final_chain: Runnable = prompt_template | large_model | parser
+
+        report = await final_chain.ainvoke(
+            {
+                'summary': result_2.overview_summary,
+                'web_dictionary': result_2.web_scraped_dictionary
+            }
+        )
+        print("\n⏳ Generating Report...\n")
+
+        return report
+
+    else:
+        return "❌ Cannot Genertae the Final Report.\nUser denied the permission to generate the final report."
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = ["*"],
+    allow_credentials = ["*"],
+    allow_methods = ["*"],
+    allow_headers = ["*"]
+)

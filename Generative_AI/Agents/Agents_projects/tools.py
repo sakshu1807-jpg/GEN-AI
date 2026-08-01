@@ -63,7 +63,7 @@ async def web_scrape(urls: List[AnyHttpUrl]) -> Dict[AnyHttpUrl, str]:
 
     for url in urls:
         try:
-            response = requests.get(url= url, timeout= 7, headers= {"User-Agent": "Mozilla/5.0"})
+            response = await requests.get(url= url, timeout= 7, headers= {"User-Agent": "Mozilla/5.0"})
             soup = BeautifulSoup(response.text, features= "html.parser")
             for tag in soup(["script", "nav", "style", "footer"]):
                 tag.decompose()
@@ -77,7 +77,7 @@ async def web_scrape(urls: List[AnyHttpUrl]) -> Dict[AnyHttpUrl, str]:
     return scrapped_text
 
 
-def user_approval():
+def user_approval() -> bool:
     """This custom middleware seeks the approval from the user to whether generate the final report or not."""
 
     print("\n✅ Data from Different Sources Collected.\n⏳ Waiting for confirmation to generate the report.\n")
