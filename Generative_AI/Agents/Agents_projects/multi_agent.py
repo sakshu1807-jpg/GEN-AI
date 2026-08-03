@@ -1,20 +1,19 @@
 # Tools Management
-from tools import web_search, web_scrape, user_approval, web_search_tool_error, web_scrape_tool_error
+from tools import web_search, web_scrape,    web_search_tool_error, web_scrape_tool_error
 
 # FastAPI Components
-
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from pydantic import BaseModel, AnyHttpUrl
+from pydantic import BaseModel, AnyHttpUrl, Field
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, List
+from typing import Dict
 from rich import print
 
 # Langchain Components
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, T
+from langchain_core.messages import SystemMessage, AIMessage
 from langchain_core.runnables import Runnable
 
 # Agents Components
@@ -27,8 +26,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Response_2(BaseModel):
-    overview_summary: str
-    web_scraped_dictionary: Dict[AnyHttpUrl, str]
+    overview_summary: str = Field(description= "The overview summary of the total content")
+    web_scraped_dictionary: Dict[AnyHttpUrl, str] = Field(description= "The dictionary where urls are keys and the text scraped are the values.")
 
 initial_loadings = {}
 
@@ -45,33 +44,25 @@ async def lifespan(app: FastAPI):
         temperature= 0.3
     )
 
-    large_model = ChatMistralAI(
-        model_name= 'mistral-large-latest',
-        temperature= 0.3
-    )
-
     parser = StrOutputParser()
 
     initial_loadings['small_model'] = small_model
     initial_loadings['medium_model'] = medium_model
-    initial_loadings['large_model'] = large_model
     initial_loadings['parser'] = parser
-    initial_loadings['message_history'] = []
 
     yield
     initial_loadings.clear()
 
-app = FastAPI("MULTI-AGENT RESEARCH SYSTEM", lifespan= lifespan)
+app = FastAPI(title="MULTI-AGENT RESEARCH SYSTEM", lifespan= lifespan)
 
 @app.post('/research_report')
-async def research_report(user_field: str):
+async def research_report(user_field: str, user_response: bool = True):
 
     # -------------- AGENT 1 --------------
 
-    small_model = initial_loadings['small_model']
-    large_model = initial_loadings['large_model']
-    parser = initial_loadings['parser']
-    msg_history: List = initial_loadings['message_history']
+    small_model: ChatMistralAI = initial_loadings['small_model']
+    medium_model: ChatMistralAI = initial_loadings['medium_model']
+    parser: StrOutputParser = initial_loadings['parser']
 
     web_search_system_msg = SystemMessage(
         content= """
@@ -94,19 +85,17 @@ async def research_report(user_field: str):
             ToolErrorMiddleware(on_error= web_search_tool_error, tools= [web_search])
         ]
     )
-    user_message = HumanMessage(content= user_field)
-    msg_history.append(user_message)
 
     config = {"configurable": {"thread_id": "thread-1"}}
     inputs_1 = {"messages": [{"role": "user", "content": user_field}]}
 
-    result_1 = web_search_agent.ainvoke(inputs_1, config= config)
+    result_1 = await web_search_agent.ainvoke(inputs_1, config= config)
     first_ai_msg: AIMessage = result_1['messages'][1]
 
     if not first_ai_msg.tool_calls:
         return AIMessage(
             content= "Ready to generate your deep-dive topic report! " \
-            "Please enter your main and a valid eductional field below. " 
+            "But please enter a valid eductional field below. " 
         )
     last_ai_msg: AIMessage = result_1['messages'][-1]
     content_1 = last_ai_msg.content
@@ -117,24 +106,23 @@ async def research_report(user_field: str):
 
     web_scrape_system_msg = SystemMessage(
             content= """
-            A helpful AI Assisstant which performs the following tasks :-
-            Core Task: Read the provided summary content and the list of URLs. 
-            Extract all URLs and pass them together as an array/list in a single tool call to the web scraping tool.
-            Loop Management: The tool returns the scraped data dictionary, the dictionary consists of url as key and the 
-            scrapped text as values.
-            The response format will be :-
-            1. Summary Content
-            2. A dictionary having scrapped text and urls.
+            You are a web extraction assistant.
+            Extract all URLs from the provided text and pass them to the web_scrape tool.
+    
+            CRITICAL: 
+            - Output ONLY the raw JSON object of the tool output where urls are the keys and the scaped text as values.
+            - Do NOT include any intro text, conversational filler, or trailing explanations.
+            - Do NOT wrap the JSON in markdown code blocks.
             """
     )
+
     web_scrape_agent = create_agent(
-        model= large_model,
+        model= medium_model,
         tools= [web_scrape],
         system_prompt= web_scrape_system_msg,
-        response_format= Response_2,
         middleware= [
                     ToolRetryMiddleware(max_retries= 3, on_failure= "error",),
-                    ToolErrorMiddleware(on_error= web_scrape_tool_error, tools= [web_search])
+                    ToolErrorMiddleware(on_error= web_scrape_tool_error, tools= [web_scrape])
                     ]
     )
 
@@ -142,7 +130,7 @@ async def research_report(user_field: str):
     inputs_2 = {"messages": [{"role": "user", "content": content_1}]}
 
     output_2 = await web_scrape_agent.ainvoke(inputs_2, config_2)
-    result_2 = output_2['structured_response']
+    result_2: AIMessage = output_2['messages'][-1]
 
     print("\n✅ Clean Scrapped Text Loaded...")
 
@@ -150,10 +138,10 @@ async def research_report(user_field: str):
             [
                 ("system", """
                 You are an expert career research analyst and executive data synthesizer. 
-                You recieve a summary and a dictionary where url is the key and scarapped text is the value.
+                You recieve a JSON Object having a dictionary where url is the key and scarapped text is the value.
                 Your task is to generate a highly detailed, compact, and comprehensive career field report 
                 based on the provided research context.
-                Extract, synthesize, and merge the information from both sources into a dense, high-utility intelligence report.
+                Extract, synthesize, and merge the information from all sources into a dense, high-utility intelligence report.
                 Introduce with a concise introduction.
                 Avoid fluff or generic career advice. Every sentence must deliver concrete, actionable data.
 
@@ -165,21 +153,17 @@ async def research_report(user_field: str):
                 Conclude with the bullet points having all the urls used as a source in this report.
                 """),
                 ("human", """
-                The summary is {summary}.
-                The web-scrapped dictionary is {web_dictionary}.
+                Your research context is {json_object}.
                 """)
             ]
     )
 
-    user_response = user_approval()
-
     if user_response:
-        final_chain: Runnable = prompt_template | large_model | parser
+        final_chain: Runnable = prompt_template | medium_model | parser
 
         report = await final_chain.ainvoke(
             {
-                'summary': result_2.overview_summary,
-                'web_dictionary': result_2.web_scraped_dictionary
+                'json_object': result_2.content
             }
         )
         print("\n⏳ Generating Report...\n")
