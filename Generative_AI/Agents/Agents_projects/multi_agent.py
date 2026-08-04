@@ -64,8 +64,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="MULTI-AGENT RESEARCH SYSTEM", lifespan= lifespan)
 
-report_to_groq: str = ''
-
 @app.post('/research_report')
 async def research_report(user_field: str, user_response: bool = True):
 
@@ -178,26 +176,28 @@ async def research_report(user_field: str, user_response: bool = True):
             }
         )
         print("\n⏳ Generating Report...\n")
-        report_to_groq = report_to_groq + report
+        global report_to_groq 
+        report_to_groq = report
         return report
 
     else:
         return "❌ Cannot Genertae the Final Report.\nUser denied the permission to generate the final report."
 
-groq_sys_msg = SystemMessage(
-        content= f"""You're a helpful AI Assisstant. You answers the user's questions strictly
-        under the provided context. You will be given a report regarding a particular field of study.
-        The report context is {report_to_groq}"""
-    )
-
 @app.post('/chat_model')
 async def chat_for_report(user: str) -> str:
 
+    global report_to_groq
     question = HumanMessage(
             content= user
         )
     messages.append(question)
     chat_history = messages
+    groq_sys_msg = SystemMessage(
+        content= f"""You're a helpful AI Assisstant. You answers the user's questions strictly
+        under the provided context. You will be given a report regarding a particular field of study.
+        The report context is {report_to_groq}.
+        Do not answer beyond the context of final report."""
+    )
 
     groq_model: ChatGroq = initial_loadings['groq_model']
     final_prompt = [groq_sys_msg] + chat_history
@@ -207,7 +207,7 @@ async def chat_for_report(user: str) -> str:
         ai_response = AIMessage(content= response.content)
         messages.append(ai_response)
 
-        return ai_response
+        return response.content
     
     except Exception as error:
         return f"An error occurred as {error}"
