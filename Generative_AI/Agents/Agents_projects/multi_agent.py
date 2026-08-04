@@ -11,9 +11,10 @@ from rich import print
 
 # Langchain Components
 from langchain_mistralai import ChatMistralAI
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.messages import SystemMessage, AIMessage
+from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
 from langchain_core.runnables import Runnable
 
 # Agents Components
@@ -30,6 +31,7 @@ class Response_2(BaseModel):
     web_scraped_dictionary: Dict[AnyHttpUrl, str] = Field(description= "The dictionary where urls are keys and the text scraped are the values.")
 
 initial_loadings = {}
+messages = []
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -44,16 +46,25 @@ async def lifespan(app: FastAPI):
         temperature= 0.3
     )
 
+    groq_model = ChatGroq(
+        model= 'llama-3.1-8b-instant',
+        temperature= 0.3
+    )
+
     parser = StrOutputParser()
 
     initial_loadings['small_model'] = small_model
     initial_loadings['medium_model'] = medium_model
+    initial_loadings['groq_model'] = groq_model
     initial_loadings['parser'] = parser
 
     yield
+    messages = []
     initial_loadings.clear()
 
 app = FastAPI(title="MULTI-AGENT RESEARCH SYSTEM", lifespan= lifespan)
+
+report_to_groq: str = ''
 
 @app.post('/research_report')
 async def research_report(user_field: str, user_response: bool = True):
@@ -167,11 +178,39 @@ async def research_report(user_field: str, user_response: bool = True):
             }
         )
         print("\n⏳ Generating Report...\n")
-
+        report_to_groq = report_to_groq + report
         return report
 
     else:
         return "❌ Cannot Genertae the Final Report.\nUser denied the permission to generate the final report."
+
+groq_sys_msg = SystemMessage(
+        content= f"""You're a helpful AI Assisstant. You answers the user's questions strictly
+        under the provided context. You will be given a report regarding a particular field of study.
+        The report context is {report_to_groq}"""
+    )
+
+@app.post('/chat_model')
+async def chat_for_report(user: str) -> str:
+
+    question = HumanMessage(
+            content= user
+        )
+    messages.append(question)
+    chat_history = messages
+
+    groq_model: ChatGroq = initial_loadings['groq_model']
+    final_prompt = [groq_sys_msg] + chat_history
+
+    try:
+        response = await groq_model.ainvoke(final_prompt)
+        ai_response = AIMessage(content= response.content)
+        messages.append(ai_response)
+
+        return ai_response
+    
+    except Exception as error:
+        return f"An error occurred as {error}"
 
 app.add_middleware(
     CORSMiddleware,
