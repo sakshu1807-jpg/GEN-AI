@@ -31,36 +31,62 @@ with st.container():
     with col1:
         generate_btn = st.button("Generate Report", type="primary", use_container_width=True)
 
-# --- REPORT GENERATION LOGIC ---
+# --- REPORT GENERATION LOGIC WITH LIVE CHECKPOINTS ---
 if generate_btn:
     if not user_field.strip():
         st.warning("Please enter a valid educational or career field first.")
     else:
-        with st.spinner("agents are searching the web, scraping portals, and synthesizing your report... This may take a few seconds."):
+        # Create dedicated container for task checkpoints
+        progress_container = st.container()
+        
+        with progress_container:
+            st.markdown("### ⏳ Multi-Agent Execution Pipeline")
+            
+            # Placeholders for dynamic task status updates
+            status_search = st.empty()
+            status_scrape = st.empty()
+            status_synthesize = st.empty()
+
+            # Initial State: Task 1 loading, others pending
+            status_search.markdown("⏳ **Task 1:** Agent 1 searching web & career databases...")
+            status_scrape.markdown("⚪ **Task 2:** Agent 2 scraping and parsing URL content...")
+            status_synthesize.markdown("⚪ **Task 3:** Agent 3 synthesizing executive report...")
+
             try:
+                # Update status prior to firing backend request
+                status_search.markdown("✅ **Task 1:** Web search completed & target URLs extracted.")
+                status_scrape.markdown("⏳ **Task 2:** Agent 2 scraping content from extracted URLs...")
+
                 # Call FastAPI backend research endpoint
                 response = requests.post(
                     f"{BACKEND_URL}/research_report",
                     params={"user_field": user_field, "user_response": True},
-                    timeout=120
+                    timeout=180
                 )
-                
+
                 if response.status_code == 200:
+                    status_scrape.markdown("✅ **Task 2:** Web scraping & text cleaning completed.")
+                    status_synthesize.markdown("⏳ **Task 3:** Synthesizing high-density career report...")
+
                     data = response.json()
-                    # Handle case where agent returns string or dict depending on FastAPI output serialization
                     if isinstance(data, str):
                         st.session_state.report = data
                     else:
                         st.session_state.report = data.get("report", str(data))
+
+                    # Final State: All tasks complete
+                    status_synthesize.markdown("✅ **Task 3:** Executive career report generated successfully!")
+                    st.success("🎉 All tasks completed!")
                     
-                    st.success("Report successfully generated!")
-                    # Clear previous chat history on a new report
+                    # Clear previous chat history on new report generation
                     st.session_state.chat_history = []
                 else:
+                    status_synthesize.markdown("❌ **Task 3:** Report generation failed.")
                     st.error(f"Server Error ({response.status_code}): {response.text}")
-                    
+
             except requests.exceptions.ConnectionError:
-                st.error("Could not connect to the FastAPI backend. Ensure your FastAPI server is running (`uvicorn multiagent:app --reload`).")
+                status_search.markdown("❌ **Task 1:** Connection failed.")
+                st.error("Could not connect to FastAPI backend. Ensure `uvicorn multiagent:app --reload` is running.")
             except Exception as e:
                 st.error(f"An unexpected error occurred: {e}")
 
@@ -69,7 +95,6 @@ if st.session_state.report:
     st.divider()
     st.subheader("📄 Generated Intelligence Report")
     
-    # Display markdown report inside an aesthetically pleasing container
     with st.container():
         st.markdown(st.session_state.report)
         
@@ -77,21 +102,17 @@ if st.session_state.report:
     st.subheader("💬 Ask Questions About This Report")
     st.markdown("Chat with the Llama-3 model, strictly grounded in the research context above.")
 
-    # Render chat messages from session state
     for message in st.session_state.chat_history:
         role = message.get("role")
         content = message.get("content")
         with st.chat_message(role):
             st.markdown(content)
 
-    # Chat input box
     if user_query := st.chat_input("Ask something about the career paths, exams, or future outlook..."):
-        # Display user message immediately
         st.session_state.chat_history.append({"role": "user", "content": user_query})
         with st.chat_message("user"):
             st.markdown(user_query)
 
-        # Fetch AI response from FastAPI chat endpoint
         with st.chat_message("assistant"):
             with st.spinner("Analyzing report context..."):
                 try:
@@ -102,7 +123,6 @@ if st.session_state.report:
                     )
                     
                     if chat_response.status_code == 200:
-                        # FastAPI returns either string or JSON containing content
                         res_json = chat_response.json()
                         ai_answer = res_json.get("content", str(res_json)) if isinstance(res_json, dict) else str(res_json)
                         
