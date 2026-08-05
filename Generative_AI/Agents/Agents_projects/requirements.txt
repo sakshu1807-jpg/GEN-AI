@@ -4,6 +4,7 @@ langchain-core
 langchain-tavily
 pydantic
 langchain-mistralai
+langchain-groq
 python-dotenv
 streamlit
 uvicorn
