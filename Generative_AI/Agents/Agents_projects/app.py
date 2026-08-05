@@ -31,33 +31,19 @@ with st.container():
     with col1:
         generate_btn = st.button("Generate Report", type="primary", use_container_width=True)
 
-# --- REPORT GENERATION LOGIC WITH LIVE CHECKPOINTS ---
+# --- REPORT GENERATION LOGIC WITH NATIVE STREAMLIT STATUS CONTAINER ---
 if generate_btn:
     if not user_field.strip():
         st.warning("Please enter a valid educational or career field first.")
     else:
-        # Create dedicated container for task checkpoints
-        progress_container = st.container()
-        
-        with progress_container:
-            st.markdown("### ⏳ Multi-Agent Execution Pipeline")
-            
-            # Placeholders for dynamic task status updates
-            status_search = st.empty()
-            status_scrape = st.empty()
-            status_synthesize = st.empty()
-
-            # Initial State: Task 1 loading, others pending
-            status_search.markdown("⏳ **Task 1:** Agent 1 searching web & career databases...")
-            status_scrape.markdown("⚪ **Task 2:** Agent 2 scraping and parsing URL content...")
-            status_synthesize.markdown("⚪ **Task 3:** Agent 3 synthesizing executive report...")
+        # st.status creates a container with a spinning loading indicator while running
+        with st.status("Executing Multi-Agent Workflow...", expanded=True) as status:
+            st.write("🔍 **Task 1:** Agent 1 searching web & career databases...")
+            st.write("🌐 **Task 2:** Agent 2 scraping and parsing URL content...")
+            st.write("🧠 **Task 3:** Agent 3 synthesizing executive report...")
 
             try:
-                # Update status prior to firing backend request
-                status_search.markdown("✅ **Task 1:** Web search completed & target URLs extracted.")
-                status_scrape.markdown("⏳ **Task 2:** Agent 2 scraping content from extracted URLs...")
-
-                # Call FastAPI backend research endpoint
+                # Send HTTP POST request to FastAPI backend
                 response = requests.post(
                     f"{BACKEND_URL}/research_report",
                     params={"user_field": user_field, "user_response": True},
@@ -65,29 +51,42 @@ if generate_btn:
                 )
 
                 if response.status_code == 200:
-                    status_scrape.markdown("✅ **Task 2:** Web scraping & text cleaning completed.")
-                    status_synthesize.markdown("⏳ **Task 3:** Synthesizing high-density career report...")
-
                     data = response.json()
                     if isinstance(data, str):
                         st.session_state.report = data
                     else:
                         st.session_state.report = data.get("report", str(data))
 
-                    # Final State: All tasks complete
-                    status_synthesize.markdown("✅ **Task 3:** Executive career report generated successfully!")
-                    st.success("🎉 All tasks completed!")
+                    # Update status container label and flip the spinner into a complete checkmark
+                    status.update(
+                        label="✅ All agent tasks completed! Intelligence report generated.",
+                        state="complete",
+                        expanded=False
+                    )
                     
                     # Clear previous chat history on new report generation
                     st.session_state.chat_history = []
                 else:
-                    status_synthesize.markdown("❌ **Task 3:** Report generation failed.")
+                    status.update(
+                        label="❌ Report generation failed.",
+                        state="error",
+                        expanded=True
+                    )
                     st.error(f"Server Error ({response.status_code}): {response.text}")
 
             except requests.exceptions.ConnectionError:
-                status_search.markdown("❌ **Task 1:** Connection failed.")
-                st.error("Could not connect to FastAPI backend. Ensure `uvicorn multiagent:app --reload` is running.")
+                status.update(
+                    label="❌ Connection failed.",
+                    state="error",
+                    expanded=True
+                )
+                st.error("Could not connect to FastAPI backend. Ensure `uvicorn multi_agent_2:app --reload` is running.")
             except Exception as e:
+                status.update(
+                    label="❌ Error occurred.",
+                    state="error",
+                    expanded=True
+                )
                 st.error(f"An unexpected error occurred: {e}")
 
 # --- DISPLAY REPORT & CHAT INTERFACE ---
