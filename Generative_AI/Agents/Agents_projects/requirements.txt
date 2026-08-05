@@ -12,3 +12,4 @@ uvicorn
 fastapi
 requests
 beautifulsoup4
+rich
