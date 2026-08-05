@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # FastAPI Backend URL
-BACKEND_URL = "http://127.0.0.1:8000"
+BACKEND_URL = " https://multi-agent-research-report-system.onrender.com"
 
 st.set_page_config(
     page_title="Multi-Agent Career Research System",
@@ -22,6 +22,12 @@ st.markdown("Enter an educational or professional career field to generate a com
 # --- SIDEBAR / INPUT SECTION ---
 with st.container():
     st.subheader("Target Field Configuration")
+
+    st.info(
+    "ℹ️ **Note:** The backend is hosted on Render's free tier, which spins down after 15 minutes of inactivity. "
+    "If the server is sleeping, the initial request may take **30–40 seconds** to wake up. Thank you for your patience!"
+    )
+    
     user_field = st.text_input(
         "Enter Career Field (e.g., Artificial Intelligence, Quantum Computing, Product Management):",
         placeholder="e.g. Bioinformatics"
