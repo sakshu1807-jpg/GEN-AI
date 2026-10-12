@@ -13,7 +13,7 @@ def pdf_embedding_creator(filename: str) -> Chroma:
 
     file_path = r"Generative_AI\Agentic_AI\Agentic_AI_tests\conditional"
     embedding_model = GoogleGenerativeAIEmbeddings(
-            model= "gemini-embedding-001"
+            model= "gemini-embedding-2"
         )
 
     file_name = os.path.join(file_path, filename)

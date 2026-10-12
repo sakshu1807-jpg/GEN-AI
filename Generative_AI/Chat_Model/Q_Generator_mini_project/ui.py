@@ -17,7 +17,7 @@ st.sidebar.markdown(
     "This app runs on a free developer key by default. If the system experiences high traffic "
     "and encounters a rate limit, please paste your personal free Mistral API key below to continue testing."
 )
-user_mistral_key = st.sidebar.text_input("Your Mistral API Key (Fallback)", type="password")
+user_mistral_key = st.sidebar.text_input("Your Groq API Key (Fallback)", type="password")
 
 num_questions = st.slider("Number of questions to generate:", min_value=1, max_value=10, value=3)
 user_paragraph = st.text_area(
@@ -39,7 +39,7 @@ if st.button("Generate Questions", type="primary"):
 
         with st.spinner("Generating questions from AI model..."):
             
-            active_key = user_mistral_key if user_mistral_key else os.getenv("MISTRAL_API_KEY")
+            active_key = user_mistral_key if user_mistral_key else os.getenv("GROQ_API_KEY")
 
             payload = {
                 "paragraph": user_paragraph,
@@ -56,7 +56,7 @@ if st.button("Generate Questions", type="primary"):
                 elif response.status_code == 429:
                     st.error("⚠️ **Demo Request Limit Reached!**")
                     st.markdown("The shared free developer quota for this app has temporarily run out of tokens.")
-                    st.info("💡 **How to resolve:** Paste your personal free Mistral API key into the sidebar panel!")
+                    st.info("💡 **How to resolve:** Paste your personal free Groq API key into the sidebar panel!")
                     
                 elif response.status_code != 200:
                     st.error("The backend server encountered an error processing your request.")

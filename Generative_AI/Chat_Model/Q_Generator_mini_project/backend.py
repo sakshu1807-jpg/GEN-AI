@@ -1,14 +1,13 @@
 # Using structured outputs (JSON) and prompt templates to
 # create a first mini-project of Gen AI
 
-from langchain_mistralai import ChatMistralAI
+from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from fastapi import FastAPI, HTTPException
-
 load_dotenv()
 
 app = FastAPI(title = "Question Geenrator AI Chatbot")
@@ -54,8 +53,8 @@ def question_generator(response : UserResponse):
     
     else:
         try:
-            model = ChatMistralAI(
-                    model = "mistral-medium-latest",
+            model = ChatGroq(
+                    model = "openai/gpt-oss-120b",
                     temperature = 0.35,
                     api_key = response.api_key
             )
@@ -66,8 +65,8 @@ def question_generator(response : UserResponse):
                     "format_instructions" : parser.get_format_instructions()
                 }
             )
-            response = model.invoke(prompt).content
-            question_data = parser.parse(response)
+            answer = model.invoke(prompt).content
+            question_data = parser.parse(answer)
             output = question_data.model_dump(mode= 'json')
 
             return output
