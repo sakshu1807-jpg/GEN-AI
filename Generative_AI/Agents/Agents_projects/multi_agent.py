@@ -62,8 +62,7 @@ async def research_report(user_field: str, user_response: bool = True):
 
     # -------------- AGENT 1 --------------
 
-    small_model: ChatGoogleGenerativeAI = initial_loadings['small_model']
-    medium_model: ChatGoogleGenerativeAI = initial_loadings['medium_model']
+    google_model: ChatGoogleGenerativeAI = initial_loadings['google_model']
     parser: StrOutputParser = initial_loadings['parser']
 
     web_search_system_msg = SystemMessage(
@@ -79,7 +78,7 @@ async def research_report(user_field: str, user_response: bool = True):
     )
 
     web_search_agent = create_agent(
-        model= small_model,
+        model= google_model,
         tools= [web_search],
         system_prompt= web_search_system_msg,
         middleware= [
@@ -119,7 +118,7 @@ async def research_report(user_field: str, user_response: bool = True):
     )
 
     web_scrape_agent = create_agent(
-        model= medium_model,
+        model= google_model,
         tools= [web_scrape],
         system_prompt= web_scrape_system_msg,
         middleware= [
@@ -161,7 +160,7 @@ async def research_report(user_field: str, user_response: bool = True):
     )
 
     if user_response:
-        final_chain: Runnable = prompt_template | medium_model | parser
+        final_chain: Runnable = prompt_template | google_model | parser
 
         report = await final_chain.ainvoke(
             {
