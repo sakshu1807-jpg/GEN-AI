@@ -69,11 +69,11 @@ if st.button("Generate Questions", type="primary"):
                     json_data = response.json()
                     st.success("🎉 Structured Data Generated Successfully!")
                     
-                    st.subheader(f"Topic: {json_data.get('topic', 'General Analysis')}")
-                    st.info(json_data.get('introduction', ''))
+                    st.subheader(f"Topic: {json_data.get('topic')}")
+                    st.info(json_data.get('introduction'))
                     
                     st.markdown("### Generated Questions:")
-                    for idx, question in enumerate(json_data.get('questions', []), 1):
+                    for idx, question in enumerate(json_data.get('questions'), 1):
                         st.markdown(f"**{idx}.** {question}")
                         
             except requests.exceptions.RequestException as e:
