@@ -4,7 +4,7 @@ langchain-core
 langchain-tavily
 tavily-python
 pydantic
-langchain-mistralai
+langchain-google-genai
 langchain-groq
 python-dotenv
 streamlit
