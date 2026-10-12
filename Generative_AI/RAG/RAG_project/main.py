@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
-from langchain_mistralai import ChatMistralAI
+from langchain_groq import ChatGroq
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_classic.retrievers.multi_query import MultiQueryRetriever
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
@@ -23,10 +23,10 @@ app = FastAPI(lifespan= data_lifespan)
 
 def get_chat_model():
     if 'chat_model' not in session:
-        session['chat_model'] = ChatMistralAI(
-            model_name="mistral-medium-latest", 
+        session['chat_model'] = ChatGroq(
+            model_name="openai/gpt-oss-120b", 
             temperature=0.45, 
-            api_key=os.getenv("MISTRAL_API_KEY")
+            api_key=os.getenv("GROQ_API_KEY")
         )
     return session['chat_model']
 
@@ -94,7 +94,7 @@ async def chatbot(request: Request):
         if not session['chunks']:
             raise HTTPException(status_code=400, detail="Please upload a document first.")
         
-        model: ChatMistralAI = get_chat_model()
+        model: ChatGroq = get_chat_model()
         embedding_model: GoogleGenerativeAIEmbeddings = get_embedding_model()
         vector_store = session['vector_store']
         chat_history = session['chat_history']
