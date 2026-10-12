@@ -10,7 +10,7 @@ from typing import Dict
 from rich import print
 
 # Langchain Components
-from langchain_mistralai import ChatMistralAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -36,14 +36,8 @@ messages = []
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
-    small_model = ChatMistralAI(
-        model_name= 'mistral-small-latest',
-        temperature= 0.3
-    )
-
-    medium_model = ChatMistralAI(
-        model_name= 'mistral-medium-latest',
-        temperature= 0.3
+    google_model = ChatGoogleGenerativeAI(
+        model= "gemini-3.1-flash-lite"
     )
 
     groq_model = ChatGroq(
@@ -53,8 +47,7 @@ async def lifespan(app: FastAPI):
 
     parser = StrOutputParser()
 
-    initial_loadings['small_model'] = small_model
-    initial_loadings['medium_model'] = medium_model
+    initial_loadings['google_model'] = google_model;
     initial_loadings['groq_model'] = groq_model
     initial_loadings['parser'] = parser
 
@@ -69,8 +62,8 @@ async def research_report(user_field: str, user_response: bool = True):
 
     # -------------- AGENT 1 --------------
 
-    small_model: ChatMistralAI = initial_loadings['small_model']
-    medium_model: ChatMistralAI = initial_loadings['medium_model']
+    small_model: ChatGoogleGenerativeAI = initial_loadings['small_model']
+    medium_model: ChatGoogleGenerativeAI = initial_loadings['medium_model']
     parser: StrOutputParser = initial_loadings['parser']
 
     web_search_system_msg = SystemMessage(
