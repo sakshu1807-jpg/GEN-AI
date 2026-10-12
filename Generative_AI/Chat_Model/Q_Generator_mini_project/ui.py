@@ -38,9 +38,11 @@ if st.button("Generate Questions", type="primary"):
         )
 
         with st.spinner("Generating questions from AI model..."):
-            
-            active_key = user_mistral_key if user_mistral_key else os.getenv("GROQ_API_KEY")
+            active_key = user_mistral_key
 
+            if user_mistral_key == None:
+                active_key = os.getenv("GROQ_API_KEY")
+            
             payload = {
                 "paragraph": user_paragraph,
                 "num_questions": num_questions,
