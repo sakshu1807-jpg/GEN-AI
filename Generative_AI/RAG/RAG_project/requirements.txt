@@ -5,7 +5,7 @@ pypdf
 pydantic
 python-docx
 langchain-google-genai
-langchain-mistralai
+langchain-groq
 python-dotenv
 streamlit
 uvicorn
