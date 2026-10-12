@@ -14,10 +14,10 @@ BACKEND_URL = "https://question-generator-ai-chatbot.onrender.com"
 
 st.sidebar.header("⚙️ API Configuration")
 st.sidebar.markdown(
-    "This app runs on a free developer key by default. If the system experiences high traffic "
-    "and encounters a rate limit, please paste your personal free Mistral API key below to continue testing."
+    "The backend uses its configured Groq API key by default. If you have your own Groq API key, "
+    "you can enter it below to use it for this request."
 )
-user_mistral_key = st.sidebar.text_input("Your Groq API Key (Fallback)", type="password")
+user_groq_key = st.sidebar.text_input("Your Groq API Key (optional)", type="password")
 
 num_questions = st.slider("Number of questions to generate:", min_value=1, max_value=10, value=3)
 user_paragraph = st.text_area(
@@ -38,31 +38,36 @@ if st.button("Generate Questions", type="primary"):
         )
 
         with st.spinner("Generating questions from AI model..."):
-            active_key = user_mistral_key
-
-            if user_mistral_key == None:
-                active_key = os.getenv("GROQ_API_KEY")
+            active_key = user_groq_key.strip() or os.getenv("GROQ_API_KEY")
             
             payload = {
                 "paragraph": user_paragraph,
                 "num_questions": num_questions,
-                "api_key": active_key
+                "api_key": active_key or None
             }
 
             try:
-                response = requests.post(BACKEND_URL, json = payload, timeout = 140)
+                response = requests.post(BACKEND_URL, json=payload, timeout=140)
 
                 if response.status_code == 400:
-                        st.warning("⚠️ **Input too long:** Please limit your input paragraph to under 3,000 words.")
-                        
+                    st.error("The backend could not process the request.")
                 elif response.status_code == 429:
                     st.error("⚠️ **Demo Request Limit Reached!**")
                     st.markdown("The shared free developer quota for this app has temporarily run out of tokens.")
                     st.info("💡 **How to resolve:** Paste your personal free Groq API key into the sidebar panel!")
-                    
+                elif response.status_code == 422:
+                    try:
+                        detail = response.json().get("detail", response.text)
+                    except ValueError:
+                        detail = response.text
+                    st.warning(detail)
                 elif response.status_code != 200:
                     st.error("The backend server encountered an error processing your request.")
-                    st.code(response.text)
+                    try:
+                        detail = response.json().get("detail", response.text)
+                    except ValueError:
+                        detail = response.text
+                    st.code(detail)
                     
                 else:
                     # SUCCESS: Parse response data dictionary directly
@@ -78,4 +83,4 @@ if st.button("Generate Questions", type="primary"):
                         
             except requests.exceptions.RequestException as e:
                 st.error("Could not connect to the backend server. Make sure it is running and accessible.")
-                st.code(e)
+                st.code(str(e))
